@@ -3,10 +3,7 @@ from tweepy import OAuthHandler
 from tweepy.streaming import Stream
 from kafka import SimpleProducer, SimpleClient
 
-consumer_key = "mwBuTAg4KDTBZYyIXyp46Sc5n"
-consumer_secret = "JJ9JLJvtubtBCx22GAhgQ2TgIZCnmXebCLQTYRe1Blo6tneMBz"
-access_token = "2837218857-xwXthz3we19aYeYp645GYwLyaYMkChkLFuJJ5kM"
-access_token_secret = "DdW9AbrW3WqwdCHADSsSK4ajEdviPJbsk65dm1HE0CuCj"
+consumer_key, consumer_secret, access_token, access_token_secret = open('./credentials.auth').read().split('\n')
 
 
 class StdOutListener(StreamListener):
