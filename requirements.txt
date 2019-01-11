@@ -1,0 +1,10 @@
+tweepy
+pyspark
+kafka-python
+kafka
+BeautifulSoup4
+requests
+numpy
+sklearn
+pandas
+nltk
