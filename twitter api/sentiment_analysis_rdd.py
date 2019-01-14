@@ -3,7 +3,6 @@ from pyspark.sql import SQLContext
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, Row
 from pyspark.mllib.linalg import SparseVector
 from pyspark.mllib.regression import LabeledPoint
-from pyspark.mllib.feature import IDF, HashingTF
 from pyspark.mllib.classification import LogisticRegressionWithSGD
 from nltk.corpus import stopwords
 import re
@@ -117,7 +116,6 @@ if __name__ == '__main__':
         map(lambda d: LabeledPoint(0 if d['label'] == 0 else 1,
                                    compute_tf(tokens=d['tokens'],
                                               reference_table=reference_table)))
-
 
     logistic_regression = LogisticRegressionWithSGD()
     trained_logistic_regression = logistic_regression.train(data=rdd)

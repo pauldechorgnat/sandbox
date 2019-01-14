@@ -1,6 +1,8 @@
 from pyspark import SparkContext
 from pyspark.streaming import StreamingContext
 from pyspark.sql import SQLContext
+from pyspark.mllib.linalg import SparseVector
+from pyspark.mllib.regression import LabeledPoint
 from pyspark.streaming.kafka import KafkaUtils
 from nltk.corpus import stopwords
 from pyspark.mllib.classification import StreamingLogisticRegressionWithSGD
@@ -53,6 +55,26 @@ def load_common_words(directory='.'):
     return cm
 
 
+def load_common_words(directory='.'):
+    cm = set(open('{}/most_common_us_words.txt'.format(directory)).read().split('\n'))
+    cm.update(['pseudotwitterreplacement', 'linkwebsitereplacement', 'retweetreplacement'])
+    return cm
+
+
+def create_hash_table(common_words, stop_words):
+    words = common_words.difference(stop_words)
+    return {w: i for i, w in enumerate(words)}
+
+
+def compute_tf(tokens, reference_table):
+    hash_table = {}
+    for token in tokens:
+        if token in reference_table.keys():
+            hash_table[reference_table[token]] = hash_table.get(reference_table[token], 0) + 1
+    sparse_vector = SparseVector(len(reference_table), hash_table)
+    return sparse_vector
+
+
 if __name__ == '__main__':
 
     sc = SparkContext(appName='PythonSparkStreamingKafka')
@@ -65,6 +87,7 @@ if __name__ == '__main__':
 
     stop_words = load_stopwords()
     common_words = load_common_words()
+    reference_table = create_hash_table(common_words=common_words, stop_words=stop_words)
 
     ssc = StreamingContext(sparkContext=sc, batchDuration=2)
     spark_sql = SQLContext(sparkContext=sc)
@@ -78,7 +101,13 @@ if __name__ == '__main__':
         map(lambda raw: json.loads(raw)).\
         filter(lambda dictionary: dictionary.get('lang', '') == 'en').\
         map(lambda dictionary: dictionary.get('text', '')).\
-        map(lambda text: tokenize(text=text, stop_words=stop_words, common_words=common_words))
+        map(lambda text: tokenize(text=text, stop_words=stop_words, common_words=common_words)).\
+        map(lambda tokens: compute_tf(tokens, reference_table=reference_table))
+
+    dfs_fitted = lr.predictOn(dfs)
+
+    dfs_fitted.pprint(5)
+
 
 
     ssc.start()
