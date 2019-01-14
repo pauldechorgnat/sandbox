@@ -1,15 +1,13 @@
-import os
 from pyspark import SparkContext
 from pyspark.sql import SQLContext
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, Row
+from pyspark.mllib.linalg import SparseVector
 from pyspark.mllib.regression import LabeledPoint
 from pyspark.mllib.feature import IDF, HashingTF
 from pyspark.mllib.classification import LogisticRegressionWithSGD
-from pyspark.ml.classification import LogisticRegression
-from nltk.stem import SnowballStemmer
 from nltk.corpus import stopwords
 import re
-import pprint
+import json
 
 
 # directory_path = 'file:///home/hduser/twitter_data'
@@ -41,6 +39,41 @@ def tokenize(text, stop_words, common_words):
     return tokens
 
 
+def load_stopwords():
+    try:
+        sw = set(stopwords.words('english'))
+    except LookupError:
+        import nltk
+        nltk.download('stopwords')
+    finally:
+        sw = set(stopwords.words('english'))
+        # we want to keep some of the words
+        words_to_keep = {'no', 'not', 'up', 'off', 'down', 'yes'}
+        sw = sw.difference(words_to_keep)
+
+    return sw
+
+
+def load_common_words(directory='.'):
+    cm = set(open('{}/most_common_us_words.txt'.format(directory)).read().split('\n'))
+    cm.update(['pseudotwitterreplacement', 'linkwebsitereplacement', 'retweetreplacement'])
+    return cm
+
+
+def create_hash_table(common_words, stop_words):
+    words = common_words.difference(stop_words)
+    return {w: i for i, w in enumerate(words)}
+
+
+def compute_tf(tokens, reference_table):
+    hash_table = {}
+    for token in tokens:
+        if token in reference_table.keys():
+            hash_table[reference_table[token]] = hash_table.get(reference_table[token], 0) + 1
+    sparse_vector = SparseVector(len(reference_table), hash_table)
+    return sparse_vector
+
+
 if __name__ == '__main__':
 
     # create a spark context
@@ -63,59 +96,36 @@ if __name__ == '__main__':
     for col in useless_columns:
         df = df.drop(col)
 
-    # df.show(5)
-
     # using a rdd
     rdd = df.rdd.map(Row.asDict)
 
     # pprint.pprint(rdd.take(2))
 
     # getting the stop words
-    try:
-        sw = set(stopwords.words('english'))
-    except LookupError:
-        import nltk
-        nltk.download('stopwords')
-    finally:
-        sw = set(stopwords.words('english'))
-        # we want to keep some of the words
-        words_to_keep = {'no', 'not', 'up', 'off', 'down', 'yes'}
-        sw = sw.difference(words_to_keep)
+    sw = load_stopwords()
 
-    cm = set(open('twitter api/most_common_us_words.txt').read().split('\n'))
-    cm.update(['pseudotwitterreplacement', 'linkwebsitereplacement', 'retweetreplacement'])
+    cm = load_common_words()
+
+    reference_table = create_hash_table(common_words=cm, stop_words=sw)
+
     # tokenizing the text
     rdd = rdd.map(lambda d:
                   {
                       'tokens': tokenize(text=d['text'], stop_words=sw, common_words=cm),
                       'label': d['label']
-                  })
-    # pprint.pprint(rdd.take(2))
+                  }).\
+        map(lambda d: LabeledPoint(0 if d['label'] == 0 else 1,
+                                   compute_tf(tokens=d['tokens'],
+                                              reference_table=reference_table)))
 
-    # Splitting features and labels
-    rdd_text = rdd.map(lambda d: d['tokens'])
-    rdd = rdd.map(lambda d: d['label']).map(int)
 
-    print('computing tf')
-    # computing TF
-    tf = HashingTF().transform(rdd_text)
+    logistic_regression = LogisticRegressionWithSGD()
+    trained_logistic_regression = logistic_regression.train(data=rdd)
 
-    # computing IDF
-    idf = IDF(minDocFreq=100).fit(tf)
-    tf_idf = idf.transform(tf).map(lambda vector: vector.toArray())
+    trained_parameters = {
+        'weights': trained_logistic_regression.weights.toArray().tolist(),
+        'intercept': trained_logistic_regression.intercept
+    }
 
-    print('merging data')
-    # regrouping data
-    rdd = rdd.\
-        zip(tf_idf).\
-        map(lambda point: LabeledPoint(point[0], point[1]))
-    # map(lambda row: Row(label=row[0], features=row[1]))
-
-    results = rdd.take(10)
-
-    # lr = LogisticRegression()
-    # lr.fit(rdd_final.toDF())
-    #
-    # # logistic_regression = LogisticRegressionWithSGD()
-    # # logistic_regression.train(data=rdd_final, iterations=10)
-
+    with open('model.json', 'w') as model_file:
+        json.dump(trained_parameters, fp=model_file)
