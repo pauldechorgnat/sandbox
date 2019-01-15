@@ -53,4 +53,4 @@ if __name__ == '__main__':
     auth.set_access_token(access_token, access_token_secret)
     # streaming tweets from Trump
     stream = Stream(auth, listener)
-    stream.filter(track="trump")
+    stream.filter(track=["trump"])

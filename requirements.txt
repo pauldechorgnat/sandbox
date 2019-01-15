@@ -8,3 +8,5 @@ numpy
 sklearn
 pandas
 nltk
+lxml
+html5lib
