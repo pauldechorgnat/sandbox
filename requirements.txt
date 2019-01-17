@@ -4,9 +4,11 @@ kafka-python
 kafka
 BeautifulSoup4
 requests
-numpy
+numpy==1.15.4
 sklearn
 pandas
 nltk
 lxml
 html5lib
+flask
+Flask-API
