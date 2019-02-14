@@ -12,3 +12,8 @@ lxml
 html5lib
 flask
 Flask-API
+happybase
+tensorflow
+wget
+tqdm
+networkx

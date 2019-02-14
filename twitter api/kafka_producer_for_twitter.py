@@ -8,20 +8,21 @@ import json
 
 
 print('using keys')
-open('./credentials.auth').read().split('\n')[:-1]
+print(open('./credentials.auth').read().split('\n')[:-1])
 
 consumer_key, consumer_secret, access_token, access_token_secret = open('./credentials.auth').read().split('\n')[:-1]
 
 
 class StdOutListener(StreamListener):
-    def __init__(self, count=10000, verbose=False):
+    def __init__(self, producer, count=10000, verbose=False):
         StreamListener.__init__(self)
         self.max_count = count
         self.counter = 0
         self.verbose = verbose
+        self.producer = producer
 
     def on_data(self, data):
-        producer.send_messages("trump", data.encode('utf-8'))
+        self.producer.send_messages("trump", data.encode('utf-8'))
         if self.verbose:
             print('=' * 80 + '\t' + str(self.counter+1) + '/' + str(self.max_count) + '\t' + '=' * 80)
             pprint.pprint(json.loads(data))
@@ -45,12 +46,13 @@ if __name__ == '__main__':
     # connecting to the kafka server
     kafka_client = SimpleClient("localhost:9092")
     # creating a producer to this server
-    producer = SimpleProducer(kafka_client)
+    kafka_producer = SimpleProducer(kafka_client)
     # creating a standard output listener of tweets
-    listener = StdOutListener(count=args.count, verbose=args.verbose)
+    listener = StdOutListener(producer=kafka_producer, count=args.count, verbose=args.verbose)
     # connecting to the twitter api
     auth = OAuthHandler(consumer_key, consumer_secret)
     auth.set_access_token(access_token, access_token_secret)
     # streaming tweets from Trump
     stream = Stream(auth, listener)
     stream.filter(track=["trump"])
+    kafka_producer.stop()
