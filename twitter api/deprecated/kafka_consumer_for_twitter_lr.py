@@ -117,6 +117,7 @@ def append_key_to_dictionary(dictionary, key, value):
     return dictionary
 
 def insert_into_table(values, table_name, host, port):
+    pass
 
 
 
