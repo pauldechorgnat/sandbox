@@ -120,6 +120,8 @@ if __name__ == '__main__':
     logistic_regression = LogisticRegressionWithSGD()
     trained_logistic_regression = logistic_regression.train(data=rdd)
 
+
+
     trained_parameters = {
         'weights': trained_logistic_regression.weights.toArray().tolist(),
         'intercept': trained_logistic_regression.intercept
