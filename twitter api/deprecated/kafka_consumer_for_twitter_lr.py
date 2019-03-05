@@ -6,11 +6,13 @@ from pyspark.streaming.kafka import KafkaUtils
 from nltk.corpus import stopwords
 from pyspark.mllib.classification import StreamingLogisticRegressionWithSGD
 from sklearn.linear_model import LogisticRegression
-from kafka import SimpleClient, SimpleProducer
+# from kafka import SimpleClient, SimpleProducer
 from scipy.sparse import csr_matrix
 import numpy as np
 import json
 import re
+import datetime
+import happybase
 
 
 def tokenize(text, stop_words, common_words):
@@ -113,6 +115,9 @@ def predict_skl(features, model):
 def append_key_to_dictionary(dictionary, key, value):
     dictionary[key] = value
     return dictionary
+
+def insert_into_table(values, table_name, host, port):
+
 
 
 if __name__ == '__main__':

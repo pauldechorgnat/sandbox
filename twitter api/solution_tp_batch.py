@@ -14,13 +14,13 @@ import json
 file_path = '/home/paul/sentiment analysis/z_sample.csv'
 
 
-def tokenize(text, stop_words, common_words):
-    # defining regular expressions
+def tokenize(text, common_words):
+    """
+    function used to tokenize tweets
+    """
     word_re = '\\w+'
     pseudo_re = '\\@[a-zA-Z0-9_]*'
     link_re = 'http(s)?://[a-zA-Z0-9./\\-]*'
-
-    # stemming = SnowballStemmer(language='english')
 
     # replacing pseudos
     text1 = re.sub(pattern=pseudo_re, string=text, repl='pseudotwitterreplacement')
@@ -32,43 +32,60 @@ def tokenize(text, stop_words, common_words):
     # finding tokens
     tokens = [t for t in re.findall(pattern=word_re, string=text1.lower()) if t in common_words]
 
-    # stemming tokens
-    # tokens = [stemming.stem(t) for t in tokens if stemming.stem(t) not in stop_words]
-
     return tokens
 
 
 def load_stopwords():
+    """
+    function used to load stop words
+    """
+    # trying to load the english stop words
     try:
-        sw = set(stopwords.words('english'))
+        stopwords.words('english')
     except LookupError:
+        # if an error occurs, we download the stopwords with nltk
         import nltk
         nltk.download('stopwords')
     finally:
+        # creating a set
         sw = set(stopwords.words('english'))
-        # we want to keep some of the words
+        # we want to keep some of the words because they can have a lot of sense
         words_to_keep = {'no', 'not', 'up', 'off', 'down', 'yes'}
+        # removing those words from the list of stop words
         sw = sw.difference(words_to_keep)
-
     return sw
 
 
 def load_common_words(directory='.'):
+    """
+    function used to load most common words
+    """
+    # loading the most common words
     cm = set(open('{}/most_common_us_words.txt'.format(directory)).read().split('\n'))
+    # adding our placeholders
     cm.update(['pseudotwitterreplacement', 'linkwebsitereplacement', 'retweetreplacement'])
     return cm
 
 
 def create_hash_table(common_words, stop_words):
+    """
+    function used to create a hash table of the words we want to keep
+    """
+    # deleting the stop words
     words = common_words.difference(stop_words)
     return {w: i for i, w in enumerate(words)}
 
 
 def compute_tf(tokens, reference_table):
+    """function used to compute term frequency"""
     hash_table = {}
+    # running through the tokens
     for token in tokens:
+        # if the token is indeed among those we want to keep
         if token in reference_table.keys():
+            # updating the frequency table
             hash_table[reference_table[token]] = hash_table.get(reference_table[token], 0) + 1
+    # returning a Sparse vector object
     sparse_vector = SparseVector(len(reference_table), hash_table)
     return sparse_vector
 
@@ -98,8 +115,6 @@ if __name__ == '__main__':
     # using a rdd
     rdd = df.rdd.map(Row.asDict)
 
-    # pprint.pprint(rdd.take(2))
-
     # getting the stop words
     sw = load_stopwords()
 
@@ -110,18 +125,18 @@ if __name__ == '__main__':
     # tokenizing the text
     rdd = rdd.map(lambda d:
                   {
-                      'tokens': tokenize(text=d['text'], stop_words=sw, common_words=cm),
+                      'tokens': tokenize(text=d['text'], common_words=cm),
                       'label': d['label']
                   }).\
         map(lambda d: LabeledPoint(0 if d['label'] == 0 else 1,
                                    compute_tf(tokens=d['tokens'],
                                               reference_table=reference_table)))
-
+    # instantiating the logistic regression
     logistic_regression = LogisticRegressionWithSGD()
+    # training the logistic regression
     trained_logistic_regression = logistic_regression.train(data=rdd)
 
-
-
+    # storing the parameters in a json file
     trained_parameters = {
         'weights': trained_logistic_regression.weights.toArray().tolist(),
         'intercept': trained_logistic_regression.intercept
