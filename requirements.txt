@@ -18,3 +18,12 @@ wget
 tqdm
 networkx
 bs4
+flask
+flask-wtf
+python-dotenv
+flask-sqlalchemy
+flask-migrate
+flask-login
+flask-mail
+pyjwt
+flask-bootstrap
