@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, request
 from config import Config
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -8,10 +8,14 @@ from logging.handlers import RotatingFileHandler
 import os
 from flask_mail import Mail
 from flask_bootstrap import Bootstrap
+from flask_moment import Moment
+from flask_babel import Babel
 
 
 app = Flask(__name__)
 bootstrap = Bootstrap(app)
+moment = Moment(app)
+babel = Babel(app)
 
 app.config.from_object(Config)
 
@@ -39,3 +43,5 @@ if not app.debug:
 
     app.logger.setLevel(logging.INFO)
     app.logger.info('Microblog startup')
+
+
